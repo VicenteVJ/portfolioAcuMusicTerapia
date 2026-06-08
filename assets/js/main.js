@@ -425,7 +425,8 @@ function renderAlbuns() {
     image.src = getAlbumCover(album);
     image.alt = `${album.nome}: ${album.fotos[0].legenda}`;
     image.loading = "lazy";
-    button.appendChild(image);
+    const count = createElement("span", "album-count", `${album.fotos.length} foto${album.fotos.length > 1 ? "s" : ""}`);
+    button.append(image, count);
 
     const name = createElement("span", "album-name", album.nome);
     card.append(button, name);
@@ -440,13 +441,8 @@ function renderCertificados() {
   grid.innerHTML = "";
 
   certificados.forEach((certificate) => {
-    const card = createElement("a", "certificate-card");
+    const card = createElement("article", "certificate-card");
     const path = encodeURI(certificate.arquivo);
-
-    card.href = path;
-    card.target = "_blank";
-    card.rel = "noopener noreferrer";
-    card.setAttribute("aria-label", `Abrir ${certificate.titulo}`);
 
     const icon = createElement("span", "document-icon");
     icon.setAttribute("aria-hidden", "true");
@@ -455,7 +451,13 @@ function renderCertificados() {
     titleWrap.appendChild(createElement("h3", "", certificate.titulo));
     titleWrap.appendChild(createElement("span", "certificate-type", `${certificate.categoria} · ${getFileType(certificate.arquivo)}`));
 
-    card.append(icon, titleWrap);
+    const openLink = createElement("a", "certificate-open", "Abrir PDF");
+    openLink.href = path;
+    openLink.target = "_blank";
+    openLink.rel = "noopener noreferrer";
+    openLink.setAttribute("aria-label", `Abrir ${certificate.titulo} em nova aba`);
+
+    card.append(icon, titleWrap, openLink);
     grid.appendChild(card);
   });
 }
