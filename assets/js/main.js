@@ -102,6 +102,13 @@ const videos = [
     destaque: false
   },
   {
+    titulo: "Participação no coral",
+    categoria: "Coral",
+    descricao: "Registro de participação em coral e prática vocal coletiva.",
+    url: "https://www.youtube.com/watch?v=mzS_S5NV6Rc",
+    destaque: false
+  },
+  {
     titulo: "Participação no I Webinário da ETI",
     categoria: "Webinário",
     descricao: "Participação na modalidade de musicalização no I Webinário da ETI.",
@@ -246,93 +253,110 @@ const certificados = [
   { titulo: "Alfabetização Baseada na Ciência", arquivo: "CERTIFICACAO/Pedagogia +/Certificado Alfabetização Baseada na Ciência.pdf", categoria: "Pedagogia +" }
 ];
 
-let albumAtual = 0;
-let fotoAtual = 0;
-let focoAntesDoModal = null;
+let currentAlbumIndex = 0;
+let currentImageIndex = 0;
+let focusBeforeModal = null;
 
-function criarElemento(tag, className, textContent) {
-  const elemento = document.createElement(tag);
-  if (className) elemento.className = className;
-  if (textContent !== undefined && textContent !== null) elemento.textContent = textContent;
-  return elemento;
+function createElement(tag, className, textContent) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (textContent !== undefined && textContent !== null) element.textContent = textContent;
+  return element;
 }
 
-function caminhoArquivo(pasta, arquivo) {
-  return encodeURI(`${pasta}${arquivo}`);
+function filePath(folder, file) {
+  return encodeURI(`${folder}${file}`);
 }
 
-function tipoArquivo(caminho) {
-  const extensao = caminho.split(".").pop();
-  return extensao ? extensao.toUpperCase() : "ARQUIVO";
+function getFileType(path) {
+  const extension = path.split(".").pop();
+  return extension ? extension.toUpperCase() : "ARQUIVO";
 }
 
-function buscarIndiceAlbum(nome) {
-  return albuns.findIndex((album) => album.nome === nome);
+function summarizeText(text, limit = 86) {
+  if (!text || text.length <= limit) return text || "";
+  return `${text.slice(0, limit).trim()}...`;
+}
+
+function findAlbumIndex(name) {
+  return albuns.findIndex((album) => album.nome === name);
+}
+
+function getAlbumCover(album) {
+  if (!album || !album.fotos.length) return "";
+  return filePath(album.pasta, album.fotos[0].arquivo);
 }
 
 function getYouTubeId(url) {
   const fallback = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
 
   try {
-    const endereco = new URL(url);
-    if (endereco.hostname.includes("youtu.be")) {
-      return endereco.pathname.split("/").filter(Boolean)[0] || "";
+    const address = new URL(url);
+    if (address.hostname.includes("youtu.be")) {
+      return address.pathname.split("/").filter(Boolean)[0] || "";
     }
 
-    return endereco.searchParams.get("v") || endereco.pathname.split("/").filter(Boolean).pop() || "";
-  } catch (erro) {
+    return address.searchParams.get("v") || address.pathname.split("/").filter(Boolean).pop() || "";
+  } catch (error) {
     return fallback ? fallback[1] : "";
   }
 }
 
-function converterYoutubeParaEmbed(url) {
+function getYouTubeEmbedUrl(url) {
   const id = getYouTubeId(url);
   return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1` : url;
 }
 
-function thumbnailYoutube(url) {
+function getYouTubeThumb(url) {
   const id = getYouTubeId(url);
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : "";
 }
 
 function renderExperiencias() {
-  const lista = document.getElementById("experiencias-lista");
-  if (!lista) return;
+  const list = document.getElementById("experiencias-lista");
+  if (!list) return;
 
-  lista.innerHTML = "";
+  list.innerHTML = "";
 
-  experiencias.forEach((experiencia) => {
-    const card = criarElemento("article", "experience-card");
-    const aside = criarElemento("div", "experience-aside");
-    const periodo = criarElemento("span", "experience-period", experiencia.periodo);
-    const tag = criarElemento("span", "experience-tag", experiencia.categoria || "Experiência");
-    const body = criarElemento("div", "experience-body");
-    const titulo = criarElemento("h3", "", experiencia.titulo);
-    const local = criarElemento("p", "experience-place", experiencia.instituicao);
-    const descricao = criarElemento("p", "experience-description", experiencia.descricao);
+  experiencias.slice(0, 6).forEach((experience) => {
+    const card = createElement("article", "experience-card");
+    const cover = createElement("div", "experience-cover");
+    const tag = createElement("span", "experience-tag", experience.categoria || "Trajetória");
+    const body = createElement("div", "experience-body");
+    const title = createElement("h3", "", experience.titulo);
+    const place = createElement("p", "experience-place", experience.instituicao);
+    const description = createElement("p", "experience-description", summarizeText(experience.descricao, 72));
+    const albumIndex = experience.albumNome ? findAlbumIndex(experience.albumNome) : -1;
+    const album = albuns[albumIndex];
 
-    aside.append(periodo, tag);
-    body.append(titulo, local, descricao);
-
-    if (experiencia.observacao) {
-      body.appendChild(criarElemento("p", "experience-note", experiencia.observacao));
+    if (album && album.fotos.length) {
+      const image = document.createElement("img");
+      image.src = getAlbumCover(album);
+      image.alt = `${album.nome}: ${album.fotos[0].legenda}`;
+      image.loading = "lazy";
+      cover.appendChild(image);
+    } else {
+      cover.classList.add("is-empty");
+      cover.textContent = "AF";
     }
 
-    if (experiencia.albumNome) {
-      const albumIndex = buscarIndiceAlbum(experiencia.albumNome);
-      const album = albuns[albumIndex];
+    body.append(title, place, description);
+    card.append(cover, tag, body);
 
-      if (albumIndex >= 0 && album.fotos.length > 0) {
-        const botao = criarElemento("button", "btn btn-outline", "Ver álbum");
-        botao.type = "button";
-        botao.setAttribute("aria-label", `Abrir álbum ${experiencia.albumNome}`);
-        botao.addEventListener("click", () => abrirModalGaleria(albumIndex, 0));
-        body.appendChild(botao);
-      }
+    if (album && album.fotos.length) {
+      const openButton = createElement("button", "experience-open", "›");
+      openButton.type = "button";
+      openButton.setAttribute("aria-label", `Abrir álbum ${album.nome}`);
+      openButton.addEventListener("click", () => openGalleryModal(albumIndex, 0));
+      card.appendChild(openButton);
+    } else {
+      const contactLink = createElement("a", "experience-open", "›");
+      contactLink.href = "#contato";
+      contactLink.setAttribute("aria-label", `Entrar em contato sobre ${experience.titulo}`);
+      card.appendChild(contactLink);
     }
 
-    card.append(aside, body);
-    lista.appendChild(card);
+    list.appendChild(card);
   });
 }
 
@@ -343,35 +367,34 @@ function renderVideos() {
   grid.innerHTML = "";
 
   videos.forEach((video, index) => {
-    const card = criarElemento("article", "video-card");
+    const card = createElement("article", "video-card");
     if (video.destaque) card.classList.add("is-featured");
 
-    const thumbButton = criarElemento("button", "video-thumb");
+    const thumbButton = createElement("button", "video-thumb");
     thumbButton.type = "button";
     thumbButton.setAttribute("aria-label", `Assistir ${video.titulo}`);
-    thumbButton.addEventListener("click", () => abrirModalVideo(index));
+    thumbButton.addEventListener("click", () => openVideoModal(index));
 
-    const imagem = document.createElement("img");
-    imagem.src = thumbnailYoutube(video.url);
-    imagem.alt = `Thumbnail do vídeo ${video.titulo}`;
-    imagem.loading = "lazy";
+    const image = document.createElement("img");
+    image.src = getYouTubeThumb(video.url);
+    image.alt = `Thumbnail do vídeo ${video.titulo}`;
+    image.loading = "lazy";
 
-    const play = criarElemento("span", "play-mark", "›");
+    const play = createElement("span", "play-mark", "▶");
     play.setAttribute("aria-hidden", "true");
+    thumbButton.append(image, play);
 
-    thumbButton.append(imagem, play);
+    const body = createElement("div", "video-body");
+    body.appendChild(createElement("span", "video-category", video.categoria));
+    body.appendChild(createElement("h3", "", video.titulo));
+    body.appendChild(createElement("p", "", video.descricao));
 
-    const body = criarElemento("div", "video-body");
-    body.appendChild(criarElemento("span", "video-category", video.categoria));
-    body.appendChild(criarElemento("h3", "", video.titulo));
-    body.appendChild(criarElemento("p", "", video.descricao));
+    const watchButton = createElement("button", "btn btn-secondary", "Assistir");
+    watchButton.type = "button";
+    watchButton.setAttribute("aria-label", `Abrir vídeo ${video.titulo}`);
+    watchButton.addEventListener("click", () => openVideoModal(index));
+    body.appendChild(watchButton);
 
-    const assistir = criarElemento("button", "btn btn-secondary", "Assistir");
-    assistir.type = "button";
-    assistir.setAttribute("aria-label", `Abrir vídeo ${video.titulo}`);
-    assistir.addEventListener("click", () => abrirModalVideo(index));
-
-    body.appendChild(assistir);
     card.append(thumbButton, body);
     grid.appendChild(card);
   });
@@ -384,48 +407,28 @@ function renderAlbuns() {
   grid.innerHTML = "";
 
   albuns.forEach((album, albumIndex) => {
-    const card = criarElemento("article", "album-card");
-    const cover = criarElemento("div", "album-cover");
-    const body = criarElemento("div", "album-body");
-    const totalFotos = album.fotos.length;
-    const titulo = criarElemento("h3", "", album.nome);
-    const descricao = criarElemento("p", "", album.descricao);
-    const count = criarElemento("span", "album-count", totalFotos ? `${totalFotos} foto${totalFotos > 1 ? "s" : ""}` : "Fotos em breve");
+    const card = createElement("article", "album-card");
 
-    if (totalFotos) {
-      const fotoCapa = album.fotos[0];
-      const imagemCapa = document.createElement("img");
-      imagemCapa.src = caminhoArquivo(album.pasta, fotoCapa.arquivo);
-      imagemCapa.alt = `${album.nome}: ${fotoCapa.legenda}`;
-      imagemCapa.loading = "lazy";
-      cover.append(imagemCapa, count);
-    } else {
-      cover.appendChild(count);
+    if (!album.fotos.length) {
+      const empty = createElement("div", "album-thumb", "AF");
+      card.appendChild(empty);
+      grid.appendChild(card);
+      return;
     }
 
-    body.append(titulo, descricao);
+    const button = createElement("button", "album-thumb");
+    button.type = "button";
+    button.setAttribute("aria-label", `Abrir álbum ${album.nome}`);
+    button.addEventListener("click", () => openGalleryModal(albumIndex, 0));
 
-    if (totalFotos) {
-      const preview = criarElemento("div", "album-preview");
-      album.fotos.slice(0, 3).forEach((foto) => {
-        const imagem = document.createElement("img");
-        imagem.src = caminhoArquivo(album.pasta, foto.arquivo);
-        imagem.alt = `${album.nome}: ${foto.legenda}`;
-        imagem.loading = "lazy";
-        preview.appendChild(imagem);
-      });
+    const image = document.createElement("img");
+    image.src = getAlbumCover(album);
+    image.alt = `${album.nome}: ${album.fotos[0].legenda}`;
+    image.loading = "lazy";
+    button.appendChild(image);
 
-      const botao = criarElemento("button", "btn btn-primary", "Ver álbum");
-      botao.type = "button";
-      botao.setAttribute("aria-label", `Abrir álbum ${album.nome}`);
-      botao.addEventListener("click", () => abrirModalGaleria(albumIndex, 0));
-
-      body.append(preview, botao);
-    } else {
-      body.appendChild(criarElemento("div", "empty-state", "Fotos em breve."));
-    }
-
-    card.append(cover, body);
+    const name = createElement("span", "album-name", album.nome);
+    card.append(button, name);
     grid.appendChild(card);
   });
 }
@@ -436,138 +439,130 @@ function renderCertificados() {
 
   grid.innerHTML = "";
 
-  certificados.forEach((certificado) => {
-    const card = criarElemento("article", "certificate-card");
-    const tipo = tipoArquivo(certificado.arquivo);
-    const caminho = encodeURI(certificado.arquivo);
-    const head = criarElemento("div", "certificate-head");
-    const icon = criarElemento("span", "document-icon");
-    const titleWrap = criarElemento("div", "certificate-title");
+  certificados.forEach((certificate) => {
+    const card = createElement("a", "certificate-card");
+    const path = encodeURI(certificate.arquivo);
 
+    card.href = path;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    card.setAttribute("aria-label", `Abrir ${certificate.titulo}`);
+
+    const icon = createElement("span", "document-icon");
     icon.setAttribute("aria-hidden", "true");
-    titleWrap.appendChild(criarElemento("span", "certificate-type", `${certificado.categoria} · ${tipo}`));
-    titleWrap.appendChild(criarElemento("h3", "", certificado.titulo));
-    head.append(icon, titleWrap);
 
-    const descricao = criarElemento("p", "", `Documento em ${tipo}, disponível para consulta.`);
-    const actions = criarElemento("div", "card-actions");
+    const titleWrap = createElement("span", "certificate-title");
+    titleWrap.appendChild(createElement("h3", "", certificate.titulo));
+    titleWrap.appendChild(createElement("span", "certificate-type", `${certificate.categoria} · ${getFileType(certificate.arquivo)}`));
 
-    const visualizar = criarElemento("a", "btn btn-secondary", "Visualizar");
-    visualizar.href = caminho;
-    visualizar.target = "_blank";
-    visualizar.rel = "noopener noreferrer";
-    visualizar.setAttribute("aria-label", `Visualizar ${certificado.titulo}`);
-
-    const baixar = criarElemento("a", "btn btn-outline", "Baixar");
-    baixar.href = caminho;
-    baixar.target = "_blank";
-    baixar.rel = "noopener noreferrer";
-    baixar.download = "";
-    baixar.setAttribute("aria-label", `Baixar ${certificado.titulo}`);
-
-    actions.append(visualizar, baixar);
-    card.append(head, descricao, actions);
+    card.append(icon, titleWrap);
     grid.appendChild(card);
   });
 }
 
-function atualizarEstadoBodyModal() {
-  const existeModalAberto = Boolean(document.querySelector(".modal.is-open"));
-  document.body.classList.toggle("modal-open", existeModalAberto);
+function updateModalBodyState() {
+  document.body.classList.toggle("modal-open", Boolean(document.querySelector(".modal.is-open")));
 }
 
-function atualizarModalGaleria() {
-  const imagem = document.getElementById("modal-image");
-  const albumNome = document.getElementById("modal-album");
-  const legenda = document.getElementById("modal-caption");
-  const contador = document.getElementById("modal-counter");
-  const album = albuns[albumAtual];
+function updateGalleryModal() {
+  const image = document.getElementById("modal-image");
+  const albumName = document.getElementById("modal-album");
+  const caption = document.getElementById("modal-caption");
+  const counter = document.getElementById("modal-counter");
+  const album = albuns[currentAlbumIndex];
 
-  if (!imagem || !album || !album.fotos.length) return;
+  if (!image || !album || !album.fotos.length) return;
 
-  const foto = album.fotos[fotoAtual];
-  imagem.src = caminhoArquivo(album.pasta, foto.arquivo);
-  imagem.alt = `${album.nome}: ${foto.legenda}`;
-
-  if (albumNome) albumNome.textContent = album.nome;
-  if (legenda) legenda.textContent = foto.legenda;
-  if (contador) contador.textContent = `${fotoAtual + 1} de ${album.fotos.length}`;
+  const photo = album.fotos[currentImageIndex];
+  image.src = filePath(album.pasta, photo.arquivo);
+  image.alt = `${album.nome}: ${photo.legenda}`;
+  if (albumName) albumName.textContent = album.nome;
+  if (caption) caption.textContent = photo.legenda;
+  if (counter) counter.textContent = `${currentImageIndex + 1} de ${album.fotos.length}`;
 }
 
-function abrirModalGaleria(albumIndex = 0, fotoIndex = 0) {
+function openGalleryModal(albumIndex = 0, imageIndex = 0) {
   const modal = document.getElementById("gallery-modal");
   const album = albuns[albumIndex];
   if (!modal || !album || !album.fotos.length) return;
 
-  const estavaFechado = !modal.classList.contains("is-open");
-  albumAtual = albumIndex;
-  fotoAtual = fotoIndex;
-  atualizarModalGaleria();
+  const wasClosed = !modal.classList.contains("is-open");
+  currentAlbumIndex = albumIndex;
+  currentImageIndex = imageIndex;
+  updateGalleryModal();
 
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
-  atualizarEstadoBodyModal();
+  updateModalBodyState();
 
-  if (estavaFechado) {
-    focoAntesDoModal = document.activeElement;
+  if (wasClosed) {
+    focusBeforeModal = document.activeElement;
     modal.querySelector(".modal-close")?.focus();
   }
 }
 
-function fecharModalGaleria() {
+function closeGalleryModal() {
   const modal = document.getElementById("gallery-modal");
-  const imagem = document.getElementById("modal-image");
+  const image = document.getElementById("modal-image");
   if (!modal) return;
 
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
-  if (imagem) imagem.src = "";
-  atualizarEstadoBodyModal();
-  focoAntesDoModal?.focus?.();
+  if (image) image.src = "";
+  updateModalBodyState();
+  focusBeforeModal?.focus?.();
 }
 
-function navegarFoto(direcao) {
-  const album = albuns[albumAtual];
+function nextImage() {
+  const album = albuns[currentAlbumIndex];
   if (!album || !album.fotos.length) return;
 
-  fotoAtual = (fotoAtual + direcao + album.fotos.length) % album.fotos.length;
-  atualizarModalGaleria();
+  currentImageIndex = (currentImageIndex + 1) % album.fotos.length;
+  updateGalleryModal();
 }
 
-function abrirModalVideo(videoIndex) {
+function previousImage() {
+  const album = albuns[currentAlbumIndex];
+  if (!album || !album.fotos.length) return;
+
+  currentImageIndex = (currentImageIndex - 1 + album.fotos.length) % album.fotos.length;
+  updateGalleryModal();
+}
+
+function openVideoModal(videoIndex) {
   const modal = document.getElementById("video-modal");
   const player = document.getElementById("video-player");
-  const titulo = document.getElementById("video-modal-title");
-  const categoria = document.getElementById("video-modal-category");
-  const descricao = document.getElementById("video-modal-description");
+  const title = document.getElementById("video-modal-title");
+  const category = document.getElementById("video-modal-category");
+  const description = document.getElementById("video-modal-description");
   const link = document.getElementById("video-modal-link");
   const video = videos[videoIndex];
 
   if (!modal || !player || !video) return;
 
-  focoAntesDoModal = document.activeElement;
+  focusBeforeModal = document.activeElement;
   player.innerHTML = "";
 
   const iframe = document.createElement("iframe");
-  iframe.src = converterYoutubeParaEmbed(video.url);
+  iframe.src = getYouTubeEmbedUrl(video.url);
   iframe.title = video.titulo;
   iframe.loading = "lazy";
   iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
   iframe.allowFullscreen = true;
   player.appendChild(iframe);
 
-  if (titulo) titulo.textContent = video.titulo;
-  if (categoria) categoria.textContent = video.categoria;
-  if (descricao) descricao.textContent = video.descricao;
+  if (title) title.textContent = video.titulo;
+  if (category) category.textContent = video.categoria;
+  if (description) description.textContent = video.descricao;
   if (link) link.href = video.url;
 
   modal.classList.add("is-open");
   modal.setAttribute("aria-hidden", "false");
-  atualizarEstadoBodyModal();
+  updateModalBodyState();
   modal.querySelector(".modal-close")?.focus();
 }
 
-function fecharModalVideo() {
+function closeVideoModal() {
   const modal = document.getElementById("video-modal");
   const player = document.getElementById("video-player");
   if (!modal) return;
@@ -575,11 +570,11 @@ function fecharModalVideo() {
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
   if (player) player.innerHTML = "";
-  atualizarEstadoBodyModal();
-  focoAntesDoModal?.focus?.();
+  updateModalBodyState();
+  focusBeforeModal?.focus?.();
 }
 
-function fecharMenuMobile() {
+function closeMobileMenu() {
   const nav = document.getElementById("site-nav");
   const toggle = document.querySelector("[data-menu-toggle]");
   if (!nav || !toggle) return;
@@ -590,65 +585,67 @@ function fecharMenuMobile() {
   document.body.classList.remove("menu-open");
 }
 
-function inicializarMenuMobile() {
+function initMobileMenu() {
   const nav = document.getElementById("site-nav");
   const toggle = document.querySelector("[data-menu-toggle]");
   if (!nav || !toggle) return;
 
   toggle.addEventListener("click", () => {
-    const aberto = nav.classList.toggle("is-open");
-    toggle.setAttribute("aria-expanded", String(aberto));
-    toggle.setAttribute("aria-label", aberto ? "Fechar menu" : "Abrir menu");
-    document.body.classList.toggle("menu-open", aberto);
+    const isOpen = nav.classList.toggle("is-open");
+    toggle.setAttribute("aria-expanded", String(isOpen));
+    toggle.setAttribute("aria-label", isOpen ? "Fechar menu" : "Abrir menu");
+    document.body.classList.toggle("menu-open", isOpen);
   });
 
-  document.addEventListener("click", (evento) => {
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", closeMobileMenu);
+  });
+
+  document.addEventListener("click", (event) => {
     if (!document.body.classList.contains("menu-open")) return;
-    if (nav.contains(evento.target) || toggle.contains(evento.target)) return;
-    fecharMenuMobile();
+    if (nav.contains(event.target) || toggle.contains(event.target)) return;
+    closeMobileMenu();
   });
 
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 900) fecharMenuMobile();
+    if (window.innerWidth >= 900) closeMobileMenu();
   });
 }
 
-function inicializarScrollSuave() {
+function initSmoothScroll() {
   document.querySelectorAll('a[href^="#"]').forEach((link) => {
-    link.addEventListener("click", (evento) => {
-      const seletor = link.getAttribute("href");
-      if (!seletor || seletor === "#") return;
+    link.addEventListener("click", (event) => {
+      const selector = link.getAttribute("href");
+      if (!selector || selector === "#") return;
 
-      const destino = document.querySelector(seletor);
-      if (!destino) return;
+      const target = document.querySelector(selector);
+      if (!target) return;
 
-      evento.preventDefault();
-      destino.scrollIntoView({ behavior: "smooth", block: "start" });
-      fecharMenuMobile();
+      event.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      closeMobileMenu();
     });
   });
 }
 
-function inicializarHeader() {
+function initHeaderState() {
   const header = document.querySelector("[data-site-header]");
   if (!header) return;
 
-  const atualizar = () => {
-    header.classList.toggle("is-scrolled", window.scrollY > 8);
+  const update = () => {
+    header.classList.toggle("is-scrolled", window.scrollY > 6);
   };
 
-  atualizar();
-  window.addEventListener("scroll", atualizar, { passive: true });
+  update();
+  window.addEventListener("scroll", update, { passive: true });
 }
 
-function marcarLinkAtivo(id) {
-  const links = document.querySelectorAll('.site-nav a[href^="#"]');
+function setActiveNavLink(id) {
+  document.querySelectorAll('.site-nav a[href^="#"]').forEach((link) => {
+    const isActive = link.getAttribute("href") === `#${id}`;
+    link.classList.toggle("is-active", isActive);
 
-  links.forEach((link) => {
-    const ativo = link.getAttribute("href") === `#${id}`;
-    link.classList.toggle("is-active", ativo);
-
-    if (ativo) {
+    if (isActive) {
       link.setAttribute("aria-current", "page");
     } else {
       link.removeAttribute("aria-current");
@@ -656,62 +653,90 @@ function marcarLinkAtivo(id) {
   });
 }
 
-function inicializarNavAtiva() {
+function initActiveNavigation() {
   const links = Array.from(document.querySelectorAll('.site-nav a[href^="#"]'));
-  const secoes = links
-    .map((link) => document.querySelector(link.getAttribute("href")))
-    .filter(Boolean);
+  const sections = links.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
 
-  if (!secoes.length) return;
+  if (!sections.length) return;
 
   if (!("IntersectionObserver" in window)) {
-    marcarLinkAtivo(secoes[0].id);
+    setActiveNavLink(sections[0].id);
     return;
   }
 
   const observer = new IntersectionObserver(
     (entries) => {
-      const visivel = entries
+      const visible = entries
         .filter((entry) => entry.isIntersecting)
         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-      if (visivel?.target?.id) marcarLinkAtivo(visivel.target.id);
+      if (visible?.target?.id) setActiveNavLink(visible.target.id);
     },
     {
-      rootMargin: "-32% 0px -54% 0px",
-      threshold: [0.1, 0.35, 0.6]
+      rootMargin: "-35% 0px -52% 0px",
+      threshold: [0.12, 0.35, 0.6]
     }
   );
 
-  secoes.forEach((secao) => observer.observe(secao));
-  marcarLinkAtivo(secoes[0].id);
+  sections.forEach((section) => observer.observe(section));
+  setActiveNavLink(sections[0].id);
 }
 
-function inicializarModais() {
-  document.querySelectorAll("[data-close-gallery]").forEach((elemento) => {
-    elemento.addEventListener("click", fecharModalGaleria);
-  });
+function initAboutToggle() {
+  const button = document.querySelector("[data-about-toggle]");
+  const content = document.getElementById("about-more");
+  if (!button || !content) return;
 
-  document.querySelectorAll("[data-close-video]").forEach((elemento) => {
-    elemento.addEventListener("click", fecharModalVideo);
-  });
-
-  document.querySelector("[data-prev-photo]")?.addEventListener("click", () => navegarFoto(-1));
-  document.querySelector("[data-next-photo]")?.addEventListener("click", () => navegarFoto(1));
-
-  document.addEventListener("keydown", (evento) => {
-    const galeriaAberta = document.getElementById("gallery-modal")?.classList.contains("is-open");
-    const videoAberto = document.getElementById("video-modal")?.classList.contains("is-open");
-
-    if (evento.key === "Escape") {
-      if (galeriaAberta) fecharModalGaleria();
-      if (videoAberto) fecharModalVideo();
-      fecharMenuMobile();
+  button.addEventListener("click", () => {
+    const isHidden = content.hasAttribute("hidden");
+    if (isHidden) {
+      content.removeAttribute("hidden");
+    } else {
+      content.setAttribute("hidden", "");
     }
 
-    if (!galeriaAberta) return;
-    if (evento.key === "ArrowLeft") navegarFoto(-1);
-    if (evento.key === "ArrowRight") navegarFoto(1);
+    button.setAttribute("aria-expanded", String(isHidden));
+    button.textContent = isHidden ? "Ver menos" : "Ver mais";
+  });
+}
+
+function initCertificatesToggle() {
+  const button = document.querySelector("[data-show-certificates]");
+  const grid = document.getElementById("certificados-grid");
+  if (!button || !grid) return;
+
+  button.addEventListener("click", () => {
+    const isExpanded = grid.classList.toggle("is-expanded");
+    button.setAttribute("aria-expanded", String(isExpanded));
+    button.textContent = isExpanded ? "Ver menos" : "Ver todos";
+  });
+}
+
+function initModals() {
+  document.querySelectorAll("[data-close-gallery]").forEach((element) => {
+    element.addEventListener("click", closeGalleryModal);
+  });
+
+  document.querySelectorAll("[data-close-video]").forEach((element) => {
+    element.addEventListener("click", closeVideoModal);
+  });
+
+  document.querySelector("[data-prev-photo]")?.addEventListener("click", previousImage);
+  document.querySelector("[data-next-photo]")?.addEventListener("click", nextImage);
+
+  document.addEventListener("keydown", (event) => {
+    const galleryOpen = document.getElementById("gallery-modal")?.classList.contains("is-open");
+    const videoOpen = document.getElementById("video-modal")?.classList.contains("is-open");
+
+    if (event.key === "Escape") {
+      if (galleryOpen) closeGalleryModal();
+      if (videoOpen) closeVideoModal();
+      closeMobileMenu();
+    }
+
+    if (!galleryOpen) return;
+    if (event.key === "ArrowLeft") previousImage();
+    if (event.key === "ArrowRight") nextImage();
   });
 }
 
@@ -720,12 +745,11 @@ document.addEventListener("DOMContentLoaded", () => {
   renderVideos();
   renderAlbuns();
   renderCertificados();
-  inicializarHeader();
-  inicializarMenuMobile();
-  inicializarScrollSuave();
-  inicializarNavAtiva();
-  inicializarModais();
-
-  const anoAtual = document.getElementById("ano-atual");
-  if (anoAtual) anoAtual.textContent = new Date().getFullYear();
+  initHeaderState();
+  initMobileMenu();
+  initSmoothScroll();
+  initActiveNavigation();
+  initAboutToggle();
+  initCertificatesToggle();
+  initModals();
 });
